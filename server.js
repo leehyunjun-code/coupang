@@ -7,6 +7,7 @@ const orderRoutes = require('./routes/orders');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 미들웨어
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -14,28 +15,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 
-// 루트 경로 처리
+// HTML 페이지 라우팅
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 모든 HTML 페이지 처리
-app.get('/:page', (req, res) => {
-  const page = req.params.page;
-  const filePath = path.join(__dirname, 'public', page);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.sendFile(path.join(__dirname, 'public', 'index.html'));
-    }
-  });
+app.get('/register.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-// Vercel용 export
-module.exports = app;
+app.get('/dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
 
-// 로컬 개발용
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
+// Vercel Serverless Function export
+module.exports = app;
