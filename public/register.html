@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>회원가입</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="쿠팡알람">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+</head>
+<body>
+  <div class="container">
+    <h1>회원가입</h1>
+    
+    <div id="message"></div>
+
+    <div class="input-group">
+      <label>아이디</label>
+      <input type="text" id="username" placeholder="아이디 입력">
+      <button class="check-username-btn" onclick="checkUsername()">중복 확인</button>
+    </div>
+
+    <div class="input-group">
+      <label>비밀번호</label>
+      <input type="password" id="password" placeholder="비밀번호 입력">
+    </div>
+
+    <div class="input-group">
+      <label>이름</label>
+      <input type="text" id="name" placeholder="이름 입력">
+    </div>
+
+    <div class="input-group">
+      <label>업체코드</label>
+      <input type="text" id="vendor_id" placeholder="A00012345">
+    </div>
+
+    <div class="input-group">
+      <label>Access Key</label>
+      <input type="text" id="access_key" placeholder="Access Key 입력">
+    </div>
+
+    <div class="input-group">
+      <label>Secret Key</label>
+      <input type="password" id="secret_key" placeholder="Secret Key 입력">
+    </div>
+
+    <button onclick="register()">회원가입</button>
+
+    <div class="link">
+      <a href="index.html">로그인</a>
+    </div>
+  </div>
+
+  <script>
+    let usernameChecked = false;
+
+    async function checkUsername() {
+      const username = document.getElementById('username').value;
+
+      if (!username) {
+        showMessage('아이디를 입력해주세요.', 'error');
+        return;
+      }
+
+      const res = await fetch('/api/auth/check-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      const data = await res.json();
+
+      if (data.available) {
+        showMessage('사용 가능한 아이디입니다.', 'success');
+        usernameChecked = true;
+      } else {
+        showMessage('이미 사용 중인 아이디입니다.', 'error');
+        usernameChecked = false;
+      }
+    }
+
+    async function register() {
+      if (!usernameChecked) {
+        showMessage('아이디 중복 확인을 해주세요.', 'error');
+        return;
+      }
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const name = document.getElementById('name').value;
+      const vendor_id = document.getElementById('vendor_id').value;
+      const access_key = document.getElementById('access_key').value;
+      const secret_key = document.getElementById('secret_key').value;
+
+      if (!username || !password || !name || !vendor_id || !access_key || !secret_key) {
+        showMessage('모든 필드를 입력해주세요.', 'error');
+        return;
+      }
+
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, name, vendor_id, access_key, secret_key })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showMessage('회원가입 완료! 로그인해주세요.', 'success');
+        setTimeout(() => location.href = 'index.html', 1500);
+      } else {
+        showMessage(data.error, 'error');
+      }
+    }
+
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+  </script>
+</body>
+</html>

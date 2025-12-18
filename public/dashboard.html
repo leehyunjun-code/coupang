@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대시보드</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="쿠팡알람">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+</head>
+<body>
+  <div class="container">
+    <h1>주문 알람</h1>
+    
+    <div id="userInfo"></div>
+    
+    <button onclick="requestNotificationPermission()">🔔 알림 권한 요청</button>
+    <button onclick="logout()">로그아웃</button>
+    <button onclick="loadOrders()">주문 새로고침</button>
+
+    <h2 style="margin-top: 30px;">오늘 주문 (<span id="orderCount">0</span>건)</h2>
+    <div id="orderList">로딩 중...</div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    let previousOrderIds = new Set();
+    let isFirstLoad = true;
+
+    if (!user) {
+      location.href = 'index.html';
+    }
+
+    document.getElementById('userInfo').innerHTML = `
+      <div class="message success">
+        ${user.name}님 환영합니다!
+      </div>
+    `;
+
+    // Service Worker 등록
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker 등록 성공', reg))
+        .catch(err => console.log('Service Worker 등록 실패', err));
+    }
+
+    // 알림 권한 요청
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) {
+        alert('이 브라우저는 알림을 지원하지 않습니다.');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      
+      if (permission === 'granted') {
+        alert('알림 권한이 허용되었습니다! 🎉');
+        // 테스트 알림
+        showNotification('알림 테스트', '새 주문이 오면 이렇게 알림이 옵니다!');
+      } else {
+        alert('알림 권한이 거부되었습니다. 브라우저 설정에서 변경할 수 있습니다.');
+      }
+    }
+
+    // 로컬 알림 표시
+    function showNotification(title, body) {
+      if ('serviceWorker' in navigator && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(title, {
+              body: body,
+              icon: '/icon-192x192.png',
+              badge: '/icon-192x192.png',
+              vibrate: [200, 100, 200],
+              tag: 'order-notification',
+              requireInteraction: false
+            });
+          });
+        }
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      location.href = 'index.html';
+    }
+
+    async function loadOrders() {
+      try {
+        const res = await fetch(`/api/orders/recent?userId=${user.id}`);
+        const data = await res.json();
+        
+        if (data.orders && data.orders.length > 0) {
+          // 주문 개수 업데이트
+          document.getElementById('orderCount').textContent = data.orders.length;
+
+          // 새 주문 체크 (첫 로드가 아닐 때만)
+          if (!isFirstLoad) {
+            const currentOrderIds = new Set(data.orders.map(o => o.orderId));
+            
+            // 이전에 없던 주문 찾기
+            const newOrders = data.orders.filter(o => !previousOrderIds.has(o.orderId));
+            
+            if (newOrders.length > 0) {
+              // 새 주문 알림
+              const totalAmount = newOrders.reduce((sum, order) => {
+                return sum + order.orderItems.reduce((itemSum, item) => {
+                  return itemSum + (parseFloat(item.unitSalesPrice) * item.salesQuantity);
+                }, 0);
+              }, 0);
+              
+              showNotification(
+                `🎉 새 주문 ${newOrders.length}건!`,
+                `총 ${totalAmount.toLocaleString()}원 / ${newOrders.map(o => o.orderItems[0].productName).join(', ')}`
+              );
+            }
+            
+            previousOrderIds = currentOrderIds;
+          } else {
+            // 첫 로드 시 현재 주문 ID 저장
+            previousOrderIds = new Set(data.orders.map(o => o.orderId));
+            isFirstLoad = false;
+          }
+
+          // 주문 목록 표시
+          let html = '';
+          let totalRevenue = 0;
+
+          data.orders.forEach(order => {
+            const paidDate = new Date(order.paidAt).toLocaleString('ko-KR');
+            
+            order.orderItems.forEach(item => {
+              const itemTotal = parseFloat(item.unitSalesPrice) * item.salesQuantity;
+              totalRevenue += itemTotal;
+              
+              html += `
+                <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+                  <p><strong>주문번호:</strong> ${order.orderId}</p>
+                  <p><strong>상품:</strong> ${item.productName}</p>
+                  <p><strong>수량:</strong> ${item.salesQuantity}개</p>
+                  <p><strong>단가:</strong> ${parseFloat(item.unitSalesPrice).toLocaleString()}원</p>
+                  <p><strong>총액:</strong> ${itemTotal.toLocaleString()}원</p>
+                  <p><strong>결제일:</strong> ${paidDate}</p>
+                </div>
+              `;
+            });
+          });
+
+          html = `<div style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+            <strong>오늘 총 매출:</strong> ${totalRevenue.toLocaleString()}원
+          </div>` + html;
+
+          document.getElementById('orderList').innerHTML = html;
+        } else {
+          document.getElementById('orderCount').textContent = '0';
+          document.getElementById('orderList').innerHTML = '<p>오늘 주문이 없습니다.</p>';
+        }
+      } catch (error) {
+        document.getElementById('orderList').innerHTML = `<p>오류: ${error.message}</p>`;
+      }
+    }
+
+    // 페이지 로드 시 알림 권한 확인
+    if (Notification.permission === 'default') {
+      setTimeout(() => {
+        if (confirm('새 주문 알림을 받으시겠습니까?')) {
+          requestNotificationPermission();
+        }
+      }, 2000);
+    }
+
+    // 첫 로드
+    loadOrders();
+    
+    // 1분마다 자동 새로고침
+    setInterval(loadOrders, 60000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 40px 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+h1 {
+  margin-bottom: 30px;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button:hover {
+  background: #333;
+}
+
+.link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.link a {
+  color: #000;
+}
+
+.message {
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.success { background: #d4edda; color: #155724; }
+.error { background: #f8d7da; color: #721c24; }

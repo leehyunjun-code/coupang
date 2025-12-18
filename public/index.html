@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>쿠팡 주문 알람 - 로그인</title>
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- PWA 메타태그 -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="쿠팡알람">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+</head>
+<body>
+  <div class="container">
+    <h1>쿠팡 주문 알람</h1>
+    
+    <div id="message"></div>
+    
+    <input type="text" id="username" placeholder="아이디" required>
+    <input type="password" id="password" placeholder="비밀번호" required>
+    <button onclick="login()">로그인</button>
+    
+    <p style="margin-top: 20px; text-align: center;">
+      <a href="register.html">회원가입</a>
+    </p>
+
+    <!-- PWA 설치 안내 -->
+    <div id="installPrompt" style="display: none; margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px; text-align: center;">
+      <p><strong>📱 앱으로 설치하기</strong></p>
+      <p style="font-size: 14px;">홈 화면에 추가하면 더 편리하게 사용할 수 있어요!</p>
+      <button onclick="installPWA()" style="background: #000; color: #fff;">설치하기</button>
+    </div>
+  </div>
+
+  <script>
+    let deferredPrompt;
+
+    // PWA 설치 프롬프트
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installPrompt').style.display = 'block';
+    });
+
+    async function installPWA() {
+      if (!deferredPrompt) {
+        alert('이미 설치되었거나 설치가 불가능합니다.');
+        return;
+      }
+      
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        document.getElementById('installPrompt').style.display = 'none';
+      }
+      
+      deferredPrompt = null;
+    }
+
+    // Service Worker 등록
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.log('SW registration failed'));
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        showMessage('아이디와 비밀번호를 입력하세요', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          location.href = 'dashboard.html';
+        } else {
+          showMessage(data.error || '로그인 실패', 'error');
+        }
+      } catch (error) {
+        showMessage('서버 오류: ' + error.message, 'error');
+      }
+    }
+
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+  </script>
+</body>
+</html>
