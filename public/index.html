@@ -22,6 +22,15 @@
     
     <input type="text" id="username" placeholder="아이디" required>
     <input type="password" id="password" placeholder="비밀번호" required>
+    
+    <!-- 자동 로그인 체크박스 -->
+    <div style="margin: 15px 0; text-align: left;">
+      <label style="display: flex; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="autoLogin" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+        <span>자동 로그인</span>
+      </label>
+    </div>
+    
     <button onclick="login()">로그인</button>
     
     <p style="margin-top: 20px; text-align: center;">
@@ -69,9 +78,31 @@
         .catch(err => console.log('SW registration failed'));
     }
 
+    // 페이지 로드 시 자동 로그인 체크
+    window.onload = function() {
+      // 자동 로그인 정보 확인
+      const savedUsername = localStorage.getItem('savedUsername');
+      const savedPassword = localStorage.getItem('savedPassword');
+      const autoLogin = localStorage.getItem('autoLogin');
+
+      // 자동 로그인이 활성화되어 있고 저장된 정보가 있으면
+      if (autoLogin === 'true' && savedUsername && savedPassword) {
+        // 자동으로 로그인
+        document.getElementById('username').value = savedUsername;
+        document.getElementById('password').value = savedPassword;
+        document.getElementById('autoLogin').checked = true;
+        login();
+      } else if (savedUsername) {
+        // 자동 로그인은 아니지만 아이디는 기억
+        document.getElementById('username').value = savedUsername;
+        document.getElementById('autoLogin').checked = false;
+      }
+    };
+
     async function login() {
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
+      const autoLogin = document.getElementById('autoLogin').checked;
 
       if (!username || !password) {
         showMessage('아이디와 비밀번호를 입력하세요', 'error');
@@ -88,7 +119,21 @@
         const data = await res.json();
 
         if (res.ok) {
+          // 사용자 정보 저장
           localStorage.setItem('user', JSON.stringify(data.user));
+          
+          // 자동 로그인 체크 시 정보 저장
+          if (autoLogin) {
+            localStorage.setItem('autoLogin', 'true');
+            localStorage.setItem('savedUsername', username);
+            localStorage.setItem('savedPassword', password);
+          } else {
+            // 자동 로그인 해제 시 정보 삭제
+            localStorage.setItem('autoLogin', 'false');
+            localStorage.removeItem('savedPassword');
+            localStorage.setItem('savedUsername', username); // 아이디는 유지
+          }
+          
           location.href = 'dashboard.html';
         } else {
           showMessage(data.error || '로그인 실패', 'error');
@@ -102,6 +147,13 @@
       const msg = document.getElementById('message');
       msg.innerHTML = `<div class="message ${type}">${text}</div>`;
     }
+
+    // Enter 키로 로그인
+    document.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
   </script>
 </body>
 </html>
